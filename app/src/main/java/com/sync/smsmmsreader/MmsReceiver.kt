@@ -1,10 +1,15 @@
-@file:Suppress("DEPRECATION")
+@file:Suppress("DEPRECATION", "UNUSED_VARIABLE", "SpellCheckingInspection", "SameParameterValue",
+    "PrivatePropertyName", "KotlinConstantConditions"
+)
 
 package com.sync.smsmmsreader
 
 import android.content.BroadcastReceiver
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
+import android.database.Cursor
+import android.net.Uri
 import android.util.Log
 import com.sync.smsmmsreader.model.SmsMessage
 
@@ -16,6 +21,7 @@ class MmsReceiver : BroadcastReceiver() {
 
     // Retrieve MMS
     override fun onReceive(context: Context, intent: Intent) {
+        val result: ContentResolver = context.contentResolver as ContentResolver
         val action = intent.action
         val type = intent.type
         if ((action == ACTION_MMS_RECEIVED) && (type == MMS_DATA_TYPE)) {
@@ -41,17 +47,21 @@ class MmsReceiver : BroadcastReceiver() {
                 }
                 val transactionId = bundle.getInt("transactionId")
                 Log.d(DEBUG_TAG, "transactionId $transactionId")
-                val pduType = bundle.getInt("pduType")
-                Log.d(DEBUG_TAG, "pduType $pduType")
-                val buffer2 = bundle.getByteArray("header")
-                val header = String(buffer2!!)
-                Log.d(DEBUG_TAG, "header $header")
-                if (contactId != -1) {
-                    showNotification(contactId, str)
-                }
+                val uri: Uri = Uri.parse("content://mms/")
+                val selection = "_id = $transactionId"
+                val cursor: Cursor? = result.query(uri, null, selection, null, null)
+                Log.d(DEBUG_TAG, cursor.toString())
 
-                // ---send a broadcast intent to update the MMS received in the
-                // activity---
+                // val pduType = bundle.getInt("pduType")
+                // Log.d(DEBUG_TAG, "pduType $pduType")
+                // val buffer2 = bundle.getByteArray("header")
+                // val header = String(buffer2!!)
+                // Log.d(DEBUG_TAG, "header $header")
+                // if (contactId != -1) {
+                //    showNotification(contactId, str)
+                // }
+
+                // ---send a broadcast intent to update the MMS received in the activity---
                 val broadcastIntent = Intent()
                 broadcastIntent.action = "MMS_RECEIVED_ACTION"
                 broadcastIntent.putExtra("mms", str)
@@ -60,7 +70,7 @@ class MmsReceiver : BroadcastReceiver() {
         }
     }
 
-    protected fun showNotification(contactId: Int, message: String?) {
+    private fun showNotification(contactId: Int, message: String?) {
         //Display notification...
         print("Message")
         print(contactId)
