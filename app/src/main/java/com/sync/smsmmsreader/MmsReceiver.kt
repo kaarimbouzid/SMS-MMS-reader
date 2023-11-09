@@ -4,14 +4,18 @@
 
 package com.sync.smsmmsreader
 
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
-import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.database.Cursor
 import android.net.Uri
 import android.util.Log
 import com.sync.smsmmsreader.model.SmsMessage
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStream
+import java.io.InputStreamReader
 
 
 class MmsReceiver : BroadcastReceiver() {
@@ -20,8 +24,8 @@ class MmsReceiver : BroadcastReceiver() {
     private val MMS_DATA_TYPE = "application/vnd.wap.mms-message"
 
     // Retrieve MMS
+    @SuppressLint("Range")
     override fun onReceive(context: Context, intent: Intent) {
-        val result: ContentResolver = context.contentResolver as ContentResolver
         val action = intent.action
         val type = intent.type
         if ((action == ACTION_MMS_RECEIVED) && (type == MMS_DATA_TYPE)) {
@@ -49,17 +53,26 @@ class MmsReceiver : BroadcastReceiver() {
                 Log.d(DEBUG_TAG, "transactionId $transactionId")
                 val uri: Uri = Uri.parse("content://mms/")
                 val selection = "_id = $transactionId"
-                val cursor: Cursor? = result.query(uri, null, selection, null, null)
+                val cursor: Cursor? = context.contentResolver.query(uri, null, selection, null, null)
                 Log.d(DEBUG_TAG, cursor.toString())
+                if (cursor!!.moveToFirst()) {
+                    do {
+                        val partId = cursor.getString(cursor.getColumnIndex("_id"))
+                        val type = cursor.getString(cursor.getColumnIndex("ct"))
+                        if ("text/plain" == type) {
+                            val data = cursor.getString(cursor.getColumnIndex("_data"))
+                            var body: String?
+                            body = if (data != null) {
+                                // implementation of this method below
+                                getMmsText(context, partId)
+                            } else {
+                                cursor.getString(cursor.getColumnIndex("text"))
+                            }
+                        }
+                    } while (cursor.moveToNext())
+                }
 
-                // val pduType = bundle.getInt("pduType")
-                // Log.d(DEBUG_TAG, "pduType $pduType")
-                // val buffer2 = bundle.getByteArray("header")
-                // val header = String(buffer2!!)
-                // Log.d(DEBUG_TAG, "header $header")
-                // if (contactId != -1) {
-                //    showNotification(contactId, str)
-                // }
+
 
                 // ---send a broadcast intent to update the MMS received in the activity---
                 val broadcastIntent = Intent()
@@ -68,6 +81,33 @@ class MmsReceiver : BroadcastReceiver() {
                 context.sendBroadcast(broadcastIntent)
             }
         }
+    }
+
+    private fun getMmsText(context: Context, id: String): String? {
+        val partURI = Uri.parse("content://mms/part/$id")
+        var `is`: InputStream? = null
+        val sb = StringBuilder()
+        try {
+            `is` = context.contentResolver.openInputStream(partURI)
+            if (`is` != null) {
+                val isr = InputStreamReader(`is`, "UTF-8")
+                val reader = BufferedReader(isr)
+                var temp: String = reader.readLine()
+                while (temp != null) {
+                    sb.append(temp)
+                    temp = reader.readLine()
+                }
+            }
+        } catch (e: IOException) {
+        } finally {
+            if (`is` != null) {
+                try {
+                    `is`.close()
+                } catch (e: IOException) {
+                }
+            }
+        }
+        return sb.toString()
     }
 
     private fun showNotification(contactId: Int, message: String?) {
