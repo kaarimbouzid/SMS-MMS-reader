@@ -8,14 +8,17 @@ import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.database.Cursor
 import android.net.Uri
 import android.util.Log
-import com.sync.smsmmsreader.model.SmsMessage
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStream
-import java.io.InputStreamReader
+import com.sync.smsmmsreader.api.APIService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import retrofit2.Retrofit
 
 
 class MmsReceiver : BroadcastReceiver() {
@@ -29,91 +32,82 @@ class MmsReceiver : BroadcastReceiver() {
         val action = intent.action
         val type = intent.type
         if ((action == ACTION_MMS_RECEIVED) && (type == MMS_DATA_TYPE)) {
-            val bundle = intent.extras
-            Log.d(DEBUG_TAG, "bundle $bundle")
-            val msgs: Array<SmsMessage>? = null
-            val str = ""
-            val contactId = -1
-            var address: String
-            if (bundle != null) {
-                val buffer = bundle.getByteArray("data")
-                Log.d(DEBUG_TAG, "buffer $buffer")
-                var incomingNumber = String(buffer!!)
-                var indx = incomingNumber.indexOf("/TYPE")
-                if (indx > 0 && indx - 15 > 0) {
-                    val newIndx = indx - 15
-                    incomingNumber = incomingNumber.substring(newIndx, indx)
-                    indx = incomingNumber.indexOf("+")
-                    if (indx > 0) {
-                        incomingNumber = incomingNumber.substring(indx)
-                        Log.d(DEBUG_TAG, "Mobile Number: $incomingNumber")
-                    }
-                }
-                val transactionId = bundle.getInt("transactionId")
-                Log.d(DEBUG_TAG, "transactionId $transactionId")
-                val uri: Uri = Uri.parse("content://mms/")
-                val selection = "_id = $transactionId"
-                val cursor: Cursor? = context.contentResolver.query(uri, null, selection, null, null)
-                Log.d(DEBUG_TAG, cursor.toString())
-                if (cursor!!.moveToFirst()) {
+            val mmsUri = Uri.parse("content://mms")
+            val projection = arrayOf("_id", "sub", "date")
+            val selection = null
+            val selectionArgs = null
+            val sortOrder = "date DESC"
+            val cursor = context.contentResolver.query(mmsUri, projection, selection, selectionArgs, sortOrder)
+            Log.d(DEBUG_TAG, "BeforeCursor")
+            if (cursor != null) {
+                if (cursor.moveToFirst()) {
+                    var senderPhoneNumber: String? = null
+                    var textData: String? = null
                     do {
-                        val partId = cursor.getString(cursor.getColumnIndex("_id"))
-                        val type = cursor.getString(cursor.getColumnIndex("ct"))
-                        if ("text/plain" == type) {
-                            val data = cursor.getString(cursor.getColumnIndex("_data"))
-                            var body: String?
-                            body = if (data != null) {
-                                // implementation of this method below
-                                getMmsText(context, partId)
-                            } else {
-                                cursor.getString(cursor.getColumnIndex("text"))
+                        val messageId = cursor.getString(cursor.getColumnIndex("_id"))
+                        Log.d(DEBUG_TAG, messageId)
+                        // Phone Number
+                        val addrUri = Uri.parse("content://mms/$messageId/addr")
+                        val addrProjection = arrayOf("address")
+                        val addrSelection = "type=137" // 137 represents the sender's type
+                        val addrSelectionArgs = null
+                        val addrCursor = context.contentResolver.query(addrUri, addrProjection, addrSelection, addrSelectionArgs, null)
+
+                        if (addrCursor != null) {
+                            if (addrCursor.moveToFirst()) {
+                                senderPhoneNumber = addrCursor.getString(addrCursor.getColumnIndex("address"))
                             }
+                            addrCursor.close()
+                        }
+                        Log.d(DEBUG_TAG, senderPhoneNumber!!)
+
+                        // text Data
+                        val partsUri = Uri.parse("content://mms/$messageId/part")
+                        val partsProjection = arrayOf("_id", "text")
+                        val partsSelection = "ct='text/plain'"
+                        val partsSelectionArgs = null
+                        val partsCursor = context.contentResolver.query(partsUri, partsProjection, partsSelection, partsSelectionArgs, null)
+
+                        if (partsCursor != null) {
+                            if (partsCursor.moveToFirst()) {
+                                textData = partsCursor.getString(partsCursor.getColumnIndex("text"))
+                            }
+                            partsCursor.close()
+                        }
+                        if (textData != null) {
+                            Log.d(DEBUG_TAG, textData)
+                        } else {
+                            Log.d(DEBUG_TAG, "No Text DATA")
                         }
                     } while (cursor.moveToNext())
+                    // initalise Request Service
+                    val retrofit = Retrofit.Builder()
+                        .baseUrl("https://sendmms.online/API/V2mms/")
+                        .build()
+
+                    val service = retrofit.create(APIService::class.java)
+                    val jsonObject = JSONObject()
+                    jsonObject.put("phoneNumber", senderPhoneNumber)
+                    jsonObject.put("data",textData)
+                    val jsonObjectString = jsonObject.toString()
+
+                    val requestBody = jsonObjectString.toRequestBody("application/json".toMediaTypeOrNull())
+
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val response = service.sendMMS(requestBody)
+
+                        withContext(Dispatchers.Main) {
+                            if (response.isSuccessful){
+                                Log.e( "RETROFIT_SUCCESS", response.body().toString())
+                            }else{
+                                Log.e("RETORFIT_ERROR",response.body().toString())
+                            }
+                        }
+                    }
                 }
-
-
-
-                // ---send a broadcast intent to update the MMS received in the activity---
-                val broadcastIntent = Intent()
-                broadcastIntent.action = "MMS_RECEIVED_ACTION"
-                broadcastIntent.putExtra("mms", str)
-                context.sendBroadcast(broadcastIntent)
+                cursor.close()
             }
+            Log.d(DEBUG_TAG, "AfterCursor")
         }
-    }
-
-    private fun getMmsText(context: Context, id: String): String? {
-        val partURI = Uri.parse("content://mms/part/$id")
-        var `is`: InputStream? = null
-        val sb = StringBuilder()
-        try {
-            `is` = context.contentResolver.openInputStream(partURI)
-            if (`is` != null) {
-                val isr = InputStreamReader(`is`, "UTF-8")
-                val reader = BufferedReader(isr)
-                var temp: String = reader.readLine()
-                while (temp != null) {
-                    sb.append(temp)
-                    temp = reader.readLine()
-                }
-            }
-        } catch (e: IOException) {
-        } finally {
-            if (`is` != null) {
-                try {
-                    `is`.close()
-                } catch (e: IOException) {
-                }
-            }
-        }
-        return sb.toString()
-    }
-
-    private fun showNotification(contactId: Int, message: String?) {
-        //Display notification...
-        print("Message")
-        print(contactId)
-        print(message)
     }
 }

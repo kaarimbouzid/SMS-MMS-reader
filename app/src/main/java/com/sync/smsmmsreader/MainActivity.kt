@@ -19,21 +19,21 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-    private val REQUEST_MMS_PERMISSION = 2
+    private val REQUEST_MMS_PERMISSION = 123
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_MMS)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
             != PackageManager.PERMISSION_GRANTED) {
 
             if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.RECEIVE_MMS)) {
+                    Manifest.permission.READ_SMS)) {
             } else {
                 ActivityCompat.requestPermissions(this,
-                    arrayOf(Manifest.permission.RECEIVE_MMS),
+                    arrayOf(Manifest.permission.READ_SMS),
                     REQUEST_MMS_PERMISSION)
             }
         } else {
@@ -66,31 +66,21 @@ class MainActivity : AppCompatActivity() {
             REQUEST_MMS_PERMISSION -> {
                 // If request is cancelled, the result arrays are empty.
                 if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    // permission was granted, yay! Do the
-                    // contacts-related task you need to do.
+                    // permission was granted.
                     Log.d(TAG, "REQUEST_MMS_PERMISSION permission granted")
 
                     // Here, thisActivity is the current activity
                     if (ContextCompat.checkSelfPermission(this,
-                            Manifest.permission.RECEIVE_MMS)
+                            Manifest.permission.READ_SMS)
                         != PackageManager.PERMISSION_GRANTED) {
 
                         // Permission is not granted
-                        // Should we show an explanation?
                         if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                                Manifest.permission.RECEIVE_MMS)) {
-                            // Show an explanation to the user *asynchronously* -- don't block
-                            // this thread waiting for the user's response! After the user
-                            // sees the explanation, try again to request the permission.
+                                Manifest.permission.READ_SMS)) {
                         } else {
-                            // No explanation needed, we can request the permission.
                             ActivityCompat.requestPermissions(this,
-                                arrayOf(Manifest.permission.RECEIVE_MMS),
+                                arrayOf(Manifest.permission.READ_SMS),
                                 REQUEST_MMS_PERMISSION)
-
-                            // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
-                            // app-defined int constant. The callback method gets the
-                            // result of the request.
                         }
                     } else {
                         // Permission has already been granted
@@ -98,8 +88,6 @@ class MainActivity : AppCompatActivity() {
 
 
                 } else {
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
                     Log.d(TAG, "REQUEST_MMS_PERMISSION permission denied")
                 }
                 return
@@ -108,23 +96,15 @@ class MainActivity : AppCompatActivity() {
             REQUEST_MMS_PERMISSION -> {
                 // If request is cancelled, the result arrays are empty.
                 if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    // permission was granted, yay! Do the
-                    // contacts-related task you need to do.
                     Log.d(TAG, "PERMISSIONS_REQUEST_READ_SMS permission granted")
                 } else {
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
                     Log.d(TAG, "PERMISSIONS_REQUEST_READ_SMS permission denied")
                 }
                 return
             }
-
-            // Add other 'when' lines to check for other
-            // permissions this app might request.
             else -> {
                 // Ignore all other requests.
             }
         }
     }
-
 }
