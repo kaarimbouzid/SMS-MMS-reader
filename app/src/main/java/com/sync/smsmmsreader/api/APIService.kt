@@ -9,4 +9,7 @@ import retrofit2.http.POST
 interface APIService {
     @POST("mmsReceived")
     suspend fun sendMMS(@Body requestBody: RequestBody): Response<ResponseBody>
+
+    @POST("smsReceived")
+    suspend fun sendSMS(@Body requestBody: RequestBody): Response<ResponseBody>
 }

@@ -39,6 +39,12 @@
                 <data android:mimeType="application/vnd.wap.mms-message" />
             </intent-filter>
         </receiver>
+        <receiver android:name="com.sync.smsmmsreader.SmsReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
         <receiver
             android:name=".MyBroadcastReceiver"
             android:exported="true"

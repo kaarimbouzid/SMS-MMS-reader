@@ -88,6 +88,7 @@ class MmsReceiver : BroadcastReceiver() {
                     val service = retrofit.create(APIService::class.java)
                     val jsonObject = JSONObject()
                     jsonObject.put("phoneNumber", senderPhoneNumber)
+                    jsonObject.put("type","MMS")
                     jsonObject.put("data",textData)
                     val jsonObjectString = jsonObject.toString()
 
