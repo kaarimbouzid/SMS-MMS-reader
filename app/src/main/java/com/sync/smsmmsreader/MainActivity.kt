@@ -1,4 +1,4 @@
-@file:Suppress("DEPRECATION", "DUPLICATE_LABEL_IN_WHEN")
+@file:Suppress("DEPRECATION", "DUPLICATE_LABEL_IN_WHEN", "PrivatePropertyName")
 
 package com.sync.smsmmsreader
 
@@ -26,15 +26,22 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS)
-            != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
 
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.READ_SMS)) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(
+                    this,
+                    Manifest.permission.RECEIVE_SMS
+                )
+            ) {
+                Log.d("Permission", "Show Permission Prompt")
             } else {
-                ActivityCompat.requestPermissions(this,
-                    arrayOf(Manifest.permission.READ_SMS),
-                    REQUEST_MMS_PERMISSION)
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.RECEIVE_SMS),
+                    REQUEST_MMS_PERMISSION
+                )
             }
         } else {
             // Permission has already been granted
@@ -49,7 +56,7 @@ class MainActivity : AppCompatActivity() {
     private fun foregroundServiceRunning(): Boolean {
         val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         for (service in activityManager.getRunningServices(Int.MAX_VALUE)) {
-            if (MyService::class.java.getName() == service.service.className) {
+            if (MyService::class.java.name == service.service.className) {
                 return true
             }
         }
@@ -70,17 +77,26 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, "REQUEST_MMS_PERMISSION permission granted")
 
                     // Here, thisActivity is the current activity
-                    if (ContextCompat.checkSelfPermission(this,
-                            Manifest.permission.READ_SMS)
-                        != PackageManager.PERMISSION_GRANTED) {
+                    if (ContextCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.RECEIVE_SMS
+                        )
+                        != PackageManager.PERMISSION_GRANTED
+                    ) {
 
                         // Permission is not granted
-                        if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                                Manifest.permission.READ_SMS)) {
+                        if (ActivityCompat.shouldShowRequestPermissionRationale(
+                                this,
+                                Manifest.permission.RECEIVE_SMS
+                            )
+                        ) {
+                            Log.d("Permission", "Show Permission Prompt")
                         } else {
-                            ActivityCompat.requestPermissions(this,
-                                arrayOf(Manifest.permission.READ_SMS),
-                                REQUEST_MMS_PERMISSION)
+                            ActivityCompat.requestPermissions(
+                                this,
+                                arrayOf(Manifest.permission.RECEIVE_SMS),
+                                REQUEST_MMS_PERMISSION
+                            )
                         }
                     } else {
                         // Permission has already been granted
@@ -96,9 +112,9 @@ class MainActivity : AppCompatActivity() {
             REQUEST_MMS_PERMISSION -> {
                 // If request is cancelled, the result arrays are empty.
                 if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    Log.d(TAG, "PERMISSIONS_REQUEST_READ_SMS permission granted")
+                    Log.d(TAG, "PERMISSIONS_REQUEST_RECEIVE_SMS permission granted")
                 } else {
-                    Log.d(TAG, "PERMISSIONS_REQUEST_READ_SMS permission denied")
+                    Log.d(TAG, "PERMISSIONS_REQUEST_RECEIVE_SMS permission denied")
                 }
                 return
             }

