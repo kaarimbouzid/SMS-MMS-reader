@@ -11,6 +11,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import com.sync.smsmmsreader.api.APIService
+import com.sync.smsmmsreader.listener.MmsListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -21,7 +22,11 @@ import org.json.JSONObject
 import retrofit2.Retrofit
 
 
-class MmsReceiver : BroadcastReceiver() {
+class MmsReceiver (
+    private val mmsListener: MmsListener = object : MmsListener {
+        override fun onMmsReceived(sender: String?, messageBody: String?) {}
+    }
+) :  BroadcastReceiver() {
     private val DEBUG_TAG = javaClass.simpleName.toString()
     private val ACTION_MMS_RECEIVED = "android.provider.Telephony.WAP_PUSH_RECEIVED"
     private val MMS_DATA_TYPE = "application/vnd.wap.mms-message"
@@ -38,12 +43,13 @@ class MmsReceiver : BroadcastReceiver() {
             val selectionArgs = null
             val sortOrder = "date DESC"
             val cursor = context.contentResolver.query(mmsUri, projection, selection, selectionArgs, sortOrder)
-            Log.d(DEBUG_TAG, "BeforeCursor")
+            // check if Cursor not null
             if (cursor != null) {
+                // parse Cursor
                 if (cursor.moveToFirst()) {
                     var senderPhoneNumber: String? = null
                     var textData: String? = null
-                    do {
+                    // do {
                         val messageId = cursor.getString(cursor.getColumnIndex("_id"))
                         Log.d(DEBUG_TAG, messageId)
                         // Phone Number
@@ -59,7 +65,7 @@ class MmsReceiver : BroadcastReceiver() {
                             }
                             addrCursor.close()
                         }
-                        Log.d(DEBUG_TAG, senderPhoneNumber!!)
+                        Log.d(DEBUG_TAG, "phone num: ${senderPhoneNumber!!}")
 
                         // text Data
                         val partsUri = Uri.parse("content://mms/$messageId/part")
@@ -75,40 +81,46 @@ class MmsReceiver : BroadcastReceiver() {
                             partsCursor.close()
                         }
                         if (textData != null) {
-                            Log.d(DEBUG_TAG, textData)
+                            Log.d(DEBUG_TAG, "Text Data: $textData")
                         } else {
                             Log.d(DEBUG_TAG, "No Text DATA")
                         }
-                    } while (cursor.moveToNext())
+                    // } while (cursor.moveToNext())
+
+                    // Fetch Received MMS To List
+                    mmsListener.onMmsReceived(senderPhoneNumber.toString(), textData.toString())
                     // initalise Request Service
-                    val retrofit = Retrofit.Builder()
-                        .baseUrl("https://sendmms.online/API/V2mms/")
-                        .build()
-
-                    val service = retrofit.create(APIService::class.java)
-                    val jsonObject = JSONObject()
-                    jsonObject.put("phoneNumber", senderPhoneNumber)
-                    jsonObject.put("type","MMS")
-                    jsonObject.put("data",textData)
-                    val jsonObjectString = jsonObject.toString()
-
-                    val requestBody = jsonObjectString.toRequestBody("application/json".toMediaTypeOrNull())
-
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val response = service.sendMMS(requestBody)
-
-                        withContext(Dispatchers.Main) {
-                            if (response.isSuccessful){
-                                Log.e( "RETROFIT_SUCCESS", response.body().toString())
-                            }else{
-                                Log.e("RETORFIT_ERROR",response.body().toString())
-                            }
-                        }
-                    }
+                    sendMMSData(senderPhoneNumber, textData.toString())
                 }
                 cursor.close()
             }
-            Log.d(DEBUG_TAG, "AfterCursor")
+        }
+    }
+
+    private fun sendMMSData(senderPhoneNumber: String, textData: String){
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://sendmms.online/API/V2mms/")
+            .build()
+
+        val service = retrofit.create(APIService::class.java)
+        val jsonObject = JSONObject()
+        jsonObject.put("phoneNumber", senderPhoneNumber)
+        jsonObject.put("type","MMS")
+        jsonObject.put("data",textData)
+        val jsonObjectString = jsonObject.toString()
+
+        val requestBody = jsonObjectString.toRequestBody("application/json".toMediaTypeOrNull())
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val response = service.sendMMS(requestBody)
+
+            withContext(Dispatchers.Main) {
+                if (response.isSuccessful){
+                    Log.e( "RETROFIT_SUCCESS", response.body().toString())
+                }else{
+                    Log.e("RETORFIT_ERROR",response.body().toString())
+                }
+            }
         }
     }
 }
